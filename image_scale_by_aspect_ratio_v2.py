@@ -174,11 +174,3 @@ class ImageScaleByAspectRatioV2:
         else:
             log(f"Error: {self.NODE_NAME} skipped, because the available image or mask is not found.", message_type='error')
             return (None, None, None, 0, 0,)
-
-NODE_CLASS_MAPPINGS = {
-    "LayerUtility: ImageScaleByAspectRatio V2": ImageScaleByAspectRatioV2
-}
-
-NODE_DISPLAY_NAME_MAPPINGS = {
-    "LayerUtility: ImageScaleByAspectRatio V2": "LayerUtility: ImageScaleByAspectRatio V2"
-}

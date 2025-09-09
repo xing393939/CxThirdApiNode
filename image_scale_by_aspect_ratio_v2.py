@@ -1,7 +1,7 @@
 import torch
 from PIL import Image
 import math
-from .imagefunc3 import log, tensor2pil, pil2tensor, image2mask, num_round_up_to_multiple, fit_resize_image, is_valid_mask
+from .imagefunc import log, tensor2pil, pil2tensor, image2mask, num_round_up_to_multiple, fit_resize_image, is_valid_mask
 
 class ImageScaleByAspectRatioV2:
 

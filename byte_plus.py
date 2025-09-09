@@ -73,7 +73,7 @@ class CxBytePlus2Video:
         seed = seed % 2147483647
         client = Ark(
             base_url="https://ark.ap-southeast.bytepluses.com/api/v3",
-            api_key=os.getenv('BYTE_PLUS API KEY'),
+            api_key=os.getenv('BYTE_PLUS_API_KEY'),
         )
         duration = int(length / frame_rate)
         ratio = "16:9"
@@ -201,7 +201,7 @@ class CxBytePlus2Image:
     def multi_generate(self, batch_size, **kwargs):
         client = Ark(
             base_url="https://ark.ap-southeast.bytepluses.com/api/v3",
-            api_key=os.getenv('BYTE_PLUS API KEY'),
+            api_key=os.getenv('BYTE_PLUS_API_KEY'),
         )
         with ThreadPoolExecutor(max_workers=4) as executor:
             futures = []

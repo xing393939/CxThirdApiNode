@@ -1,9 +1,9 @@
-from .byte_plus_v2 import CxBytePlus2ImageV2
-from .byte_plus_v2 import CxBytePlus2VideoV2
+from .byte_plus import CxBytePlus2Image
+from .byte_plus import CxBytePlus2Video
 from .image_scale_by_aspect_ratio_v2 import ImageScaleByAspectRatioV2
 
 NODE_CLASS_MAPPINGS = {
-    "CxBytePlus2Image": CxBytePlus2ImageV2,
-    "CxBytePlus2Video": CxBytePlus2VideoV2,
+    "CxBytePlus2Image": CxBytePlus2Image,
+    "CxBytePlus2Video": CxBytePlus2Video,
     "LayerUtility: ImageScaleByAspectRatio V2": ImageScaleByAspectRatioV2
 }

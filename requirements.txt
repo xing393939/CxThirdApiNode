@@ -1,1 +1,1 @@
-byteplus-python-sdk-v2
+byteplus-python-sdk-v2==3.0.11

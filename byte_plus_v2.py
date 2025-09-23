@@ -1,4 +1,5 @@
 from byteplussdkarkruntime import Ark
+from byteplussdkarkruntime.types.images import SequentialImageGenerationOptions
 from comfy_api_nodes.apinode_utils import (
     bytesio_to_image_tensor,
     download_url_to_video_output,
@@ -246,6 +247,8 @@ class CxBytePlus2ImageV2:
             size = ratio_for_image[ratio]
         if image is not None:
             image = tensor_to_data_uri(image)
+        options = SequentialImageGenerationOptions()
+        options.max_images = batch_size
         images_response = client.images.generate(
             model="ep-20250918155819-q7k8b",
             seed=seed,
@@ -255,9 +258,7 @@ class CxBytePlus2ImageV2:
             response_format="b64_json",
             watermark=False,
             sequential_image_generation="auto",
-            sequential_image_generation_options={
-                "max_images": batch_size
-            }
+            sequential_image_generation_options=options
         )
 
         returned_list = []

@@ -12,10 +12,6 @@ import torch
 import time
 import os
 
-ratio_list = [0.33, 0.35, 0.38, 0.4, 0.42, 0.47, 0.51, 0.55, 0.56, 0.6, 0.63, 0.66, 0.67, 0.7, 0.72, 0.75, 0.78, 0.82,
-              0.85, 0.88, 0.91, 0.94, 0.97, 1, 1.06, 1.1, 1.17, 1.24, 1.29, 1.33, 1.42, 1.46, 1.5, 1.56, 1.62, 1.67,
-              1.74, 1.82, 1.78, 1.86, 1.95, 2, 2.05, 2.1, 2.2, 2.25, 2.3, 2.35, 2.4, 2.53, 2.67, 2.82, 3]
-
 ratio_for_image = {
     "1:1": "2048x2048",
     "4:3": "2304x1728",
@@ -30,23 +26,24 @@ ratio_for_image = {
 
 def get_aspect_ratio(width, height):
     ratio = round(width / height, 2)
-    if ratio == 1:
-        return "1:1"
-    elif ratio == 0.67:
-        return "2:3"
-    elif ratio == 1.5:
-        return "3:2"
-    elif ratio == 0.75:
-        return "3:4"
-    elif ratio == 1.33:
-        return "4:3"
-    elif ratio == 0.56:
+    if ratio <= 0.6:
         return "9:16"
-    elif ratio == 1.78:
+    elif ratio <= 0.7:
+        return "2:3"
+    elif ratio <= 0.8:
+        return "3:4"
+    elif ratio <= 1.1:
+        return "1:1"
+    elif ratio <= 1.4:
+        return "4:3"
+    elif ratio <= 1.6:
+        return "3:2"
+    elif ratio <= 1.8:
         return "16:9"
-    elif ratio == 2.33:
+    elif ratio <= 2.4:
         return "21:9"
-    return "1:1"
+    else:
+        return "21:9"
 
 
 class CxBytePlus2VideoV2:
@@ -111,19 +108,9 @@ class CxBytePlus2VideoV2:
             base_url="https://ark.ap-southeast.bytepluses.com/api/v3",
             api_key=os.getenv('BYTE_PLUS_API_KEY'),
         )
-        duration = int(length / frame_rate)
-        ratio = "16:9"
-        if width == 1664:
-            ratio = "4:3"
-        elif width == 1440:
-            ratio = "1:1"
-        elif width == 1248:
-            ratio = "3:4"
-        elif width == 1088:
-            ratio = "9:16"
-        elif width == 2176:
-            ratio = "21:9"
-        extra_params = f" --duration {duration} --seed {seed} --ratio {ratio}"
+        duration = max(int(length / frame_rate), 3)
+        ratio = get_aspect_ratio(width, height)
+        extra_params = f" --duration {duration} --seed {seed} --ratio {ratio} --resolution 480p --framepersecond {frame_rate}"
         if image is not None:
             image_str = tensor_to_data_uri(image)
             create_result = client.content_generation.tasks.create(
@@ -153,7 +140,7 @@ class CxBytePlus2VideoV2:
             )
 
         # Polling query section
-        print("----- polling task status -----")
+        print(f"----- polling task {extra_params} -----")
         task_id = create_result.id
         video_url = ""
         while True:
@@ -249,6 +236,8 @@ class CxBytePlus2ImageV2:
             image = tensor_to_data_uri(image)
         options = SequentialImageGenerationOptions()
         options.max_images = batch_size
+        if batch_size > 1:
+            prompt = f"{prompt} (Generate {batch_size} images)"
         images_response = client.images.generate(
             model="ep-20250918155819-q7k8b",
             seed=seed,

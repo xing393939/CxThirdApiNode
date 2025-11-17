@@ -1,9 +1,17 @@
 from byteplussdkarkruntime import Ark
-from comfy_api_nodes.apinode_utils import (
-    bytesio_to_image_tensor,
-    download_url_to_video_output,
-    tensor_to_data_uri,
-)
+try:
+    from comfy_api_nodes.apinode_utils import (
+        bytesio_to_image_tensor,
+        download_url_to_video_output,
+        tensor_to_data_uri,
+    )
+except ImportError:
+    # compatible for new version of comfyui
+    from comfy_api_nodes.util import (
+        bytesio_to_image_tensor,
+        download_url_to_video_output,
+    )
+    from comfy_api_nodes.util.conversions import tensor_to_data_uri
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from io import BytesIO
 import base64

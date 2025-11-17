@@ -1,1 +1,2 @@
 byteplus-python-sdk-v2==3.0.11
+pillow_heif==1.1.1

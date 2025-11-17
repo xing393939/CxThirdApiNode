@@ -3,17 +3,27 @@ import hashlib
 import os
 import io
 
+import requests
 from PIL.MpoImagePlugin import MpoImageFile
 from PIL import Image, ImageSequence, ImageOps
 from pillow_heif import register_heif_opener
+from requests.adapters import HTTPAdapter, Retry
 
 import numpy as np
 import torch
-from ..utils import http_client
 
 import folder_paths
 
 register_heif_opener()
+
+
+def http_client():
+    adapter = HTTPAdapter(max_retries=Retry(3, backoff_factor=0.1))
+    http = requests.session()
+    http.mount('http://', adapter)
+    http.mount('https://', adapter)
+
+    return http
 
 
 class LoadImageByUrl:

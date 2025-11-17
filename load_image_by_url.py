@@ -27,7 +27,7 @@ def http_client():
 
 
 class LoadImageByUrl:
-    CATEGORY = "cx"
+    CATEGORY = "cx/LoadImageByUrl"
 
     RETURN_TYPES = ("IMAGE", )
     RETURN_NAMES = ("IMAGE", )

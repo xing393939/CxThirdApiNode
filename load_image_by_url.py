@@ -5,16 +5,19 @@ import io
 
 from PIL.MpoImagePlugin import MpoImageFile
 from PIL import Image, ImageSequence, ImageOps
+from pillow_heif import register_heif_opener
+
 import numpy as np
 import torch
 from ..utils import http_client
 
-
 import folder_paths
+
+register_heif_opener()
 
 
 class LoadImageByUrl:
-    CATEGORY = "Browser"
+    CATEGORY = "cx"
 
     RETURN_TYPES = ("IMAGE", )
     RETURN_NAMES = ("IMAGE", )
@@ -66,7 +69,8 @@ class LoadImageByUrl:
                     if frame < n_frames - 1:
                         img.n_frames = frame + 1
                         img.is_animated = img.n_frames > 1
-                        print(f"Truncated MPO image detected, change n_frames({n_frames}) => {img.n_frames}")
+                        print(
+                            f"Truncated MPO image detected, change n_frames({n_frames}) => {img.n_frames}")
                     break
                 except ValueError:
                     continue

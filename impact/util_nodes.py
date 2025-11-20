@@ -20,7 +20,7 @@ class GeneralReversedSwitch:
     FUNCTION = "doit"
     CATEGORY = "cx/GeneralReversedSwitch"
 
-    def doit(self, select, prompt, unique_id, input, **kwargs):
+    def doit(self, select, input, **kwargs):
         if is_execution_model_version_supported():
             from comfy_execution.graph import ExecutionBlocker
         else:
@@ -28,16 +28,8 @@ class GeneralReversedSwitch:
                 "[Impact Pack] InversedSwitch: ComfyUI is outdated. The 'select_on_execution' mode cannot function properly.")
 
         res = []
-
-        # search max output count in prompt
-        cnt = 0
-        for x in prompt.values():
-            for y in x.get('inputs', {}).values():
-                if isinstance(y, list) and len(y) == 2:
-                    if y[0] == unique_id:
-                        cnt = max(cnt, y[1])
-
-        for i in range(0, cnt + 1):
+        cnt = 8
+        for i in range(0, cnt):
             if select == i + 1:
                 res.append(input)
             elif is_execution_model_version_supported():

@@ -1,4 +1,4 @@
-from .utils import any_typ, ByPassTypeTuple, is_execution_model_version_supported
+from .utils import any_typ, is_execution_model_version_supported
 import logging
 
 
@@ -13,11 +13,11 @@ class GeneralReversedSwitch:
             },
         }
 
-    RETURN_TYPES = ByPassTypeTuple((any_typ,))
+    RETURN_TYPES = (any_typ, any_typ, any_typ, any_typ, any_typ, any_typ, any_typ, any_typ)
+    RETURN_NAMES = ("output1", "output2", "output3", "output4", "output5", "output6", "output7", "output8")
     OUTPUT_TOOLTIPS = (
         "Output occurs only from the output selected by the 'select' value.\nWhen slots are connected, additional slots are created.",)
     FUNCTION = "doit"
-
     CATEGORY = "cx/GeneralReversedSwitch"
 
     def doit(self, select, prompt, unique_id, input, **kwargs):

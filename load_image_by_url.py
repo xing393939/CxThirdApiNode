@@ -48,49 +48,59 @@ class LoadImageByUrl:
     def __init__(self):
         self.url = ""
 
-    def filename(self):
-        return hashlib.md5(self.url.encode()).hexdigest()[:48] + '.jpg'
-
-    def download_by_url(self):
+    @property
+    def filepath(self):
         input_dir = folder_paths.get_input_directory()
-        res = http_client().get(self.url, timeout=(30, 30))
-        if res.status_code == 200:
-            download_path = os.path.join(input_dir, self.filename())
-            with open(download_path, 'wb') as file:
-                file.write(res.content)
-            return res.content
-        else:
-            raise ValueError(f"Failed to load image from {self.url}: {res.status_code} {res.text}")
+        return os.path.join(input_dir, hashlib.md5(self.url.encode()).hexdigest()[:48] + '.jpg')
+
+    def download_by_url(self, cache: bool):
+        resp = http_client().get(self.url, timeout=(30, 30))
+        if resp.status_code != 200:
+            raise ValueError(
+                f"Failed to load image from {self.url}: {resp.status_code}, {resp.text}")
+
+        if cache:
+            with open(self.filepath, 'wb') as file:
+                file.write(resp.content)
+
+        return resp.content
 
     def run(self, url: str, cache: bool = True):
         self.url = url
-        input_dir = folder_paths.get_input_directory()
-        image_path = os.path.join(input_dir, self.filename())
+        image_path = self.filepath
         if not cache or not os.path.isfile(image_path):
-            img = Image.open(io.BytesIO(self.download_by_url()))
+            img = Image.open(io.BytesIO(self.download_by_url(cache)))
         else:
             img = Image.open(image_path)
 
         # handle truncated MPO image
         if isinstance(img, MpoImageFile):
-            for frame in reversed(range(n_frames := img.n_frames)):
+            for n in reversed(range(frames := img.n_frames)):
                 try:
-                    img.seek(frame)
-                    if frame < n_frames - 1:
-                        img.n_frames = frame + 1
+                    img.seek(n)
+                    if n < frames - 1:
+                        img.n_frames = n + 1
                         img.is_animated = img.n_frames > 1
-                        print(
-                            f"Truncated MPO image detected, change n_frames({n_frames}) => {img.n_frames}")
+                        print(f"Truncated MPO image detected, change n_frames({frames}) => {n + 1}")
                     break
                 except ValueError:
                     continue
+
             img.seek(0)
 
-        output_images = []
+        first_image: Image.Image | None = None
+        output_images: list[torch.Tensor] = []
         for i in ImageSequence.Iterator(img):
             i = ImageOps.exif_transpose(i)
-            image = i.convert("RGB")
-            image = np.array(image).astype(np.float32) / 255.0
+            i = i.convert("RGB")
+            if first_image and i.size != first_image.size:
+                print(f"Image size mismatch first image size: {i.size} != {first_image.size}")
+                continue
+
+            if first_image is None:
+                first_image = i
+
+            image = np.array(i).astype(np.float32) / 255.0
             image = torch.from_numpy(image)[None,]
             output_images.append(image)
 

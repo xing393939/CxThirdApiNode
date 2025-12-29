@@ -1,2 +1,3 @@
-byteplus-python-sdk-v2==3.0.11
+pillow>=11.1.0
 pillow_heif==1.1.1
+byteplus-python-sdk-v2==3.0.11

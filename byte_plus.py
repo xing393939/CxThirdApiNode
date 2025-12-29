@@ -19,9 +19,12 @@ import torch
 import time
 import os
 
-ratio_list = [0.33,0.35,0.38,0.4,0.42,0.47,0.51,0.55,0.56,0.6,0.63,0.66,0.67,0.7,0.72,0.75,0.78,0.82,0.85,0.88,0.91,0.94,0.97,1,1.06,1.1,1.17,1.24,1.29,1.33,1.42,1.46,1.5,1.56,1.62,1.67,1.74,1.82,1.78,1.86,1.95,2,2.05,2.1,2.2,2.25,2.3,2.35,2.4,2.53,2.67,2.82,3]
+ratio_list = [0.33, 0.35, 0.38, 0.4, 0.42, 0.47, 0.51, 0.55, 0.56, 0.6, 0.63, 0.66, 0.67, 0.7, 0.72, 0.75, 0.78, 0.82, 0.85, 0.88, 0.91, 0.94, 0.97, 1, 1.06,
+              1.1, 1.17, 1.24, 1.29, 1.33, 1.42, 1.46, 1.5, 1.56, 1.62, 1.67, 1.74, 1.82, 1.78, 1.86, 1.95, 2, 2.05, 2.1, 2.2, 2.25, 2.3, 2.35, 2.4, 2.53, 2.67, 2.82, 3]
+
 
 class CxBytePlus2Video:
+
     @classmethod
     def INPUT_TYPES(s):
         return {
@@ -76,8 +79,8 @@ class CxBytePlus2Video:
     OUTPUT_NODE = True
     CATEGORY = "cx/CxBytePlus2Video"
 
-    async def save_video(self, model: str, prompt: str, width: int, height: int, seed: int,
-                   frame_rate: int, length: int, image: torch.Tensor = None):
+    async def save_video(self, model: str, prompt: str, width: int, height: int,
+                         seed: int, frame_rate: int, length: int, image: torch.Tensor | None = None):
         seed = seed % 2147483647
         client = Ark(
             base_url="https://ark.ap-southeast.bytepluses.com/api/v3",
@@ -222,10 +225,10 @@ class CxBytePlus2Image:
                 results.append(future.result())
             return results
 
-    def save_image(self, model: str, prompt: str, width: int, height: int, cfg_scale: float, seed: int,
-                   batch_size: int, image: torch.Tensor = None):
+    def save_image(self, model: str, prompt: str, width: int, height: int,
+                   cfg_scale: float, seed: int, batch_size: int, image: torch.Tensor | None = None):
         seed = seed % 2147483647
-        size="{}x{}".format(width, height)
+        size = "{}x{}".format(width, height)
         print(f"size: {size}")
         if image is not None:
             size = width / height

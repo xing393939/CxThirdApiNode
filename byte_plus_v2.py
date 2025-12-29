@@ -13,7 +13,6 @@ except ImportError:
         download_url_to_video_output,
     )
     from comfy_api_nodes.util.conversions import tensor_to_data_uri
-from concurrent.futures import ThreadPoolExecutor, as_completed
 from io import BytesIO
 import base64
 import torch
@@ -32,7 +31,7 @@ ratio_for_image = {
 }
 
 
-def get_aspect_ratio(width, height):
+def get_aspect_ratio(width: int, height: int):
     ratio = round(width / height, 2)
     if ratio <= 0.6:
         return "9:16"
@@ -109,8 +108,8 @@ class CxBytePlus2VideoV2:
     OUTPUT_NODE = True
     CATEGORY = "cx/CxBytePlus2Video"
 
-    async def save_video(self, model: str, prompt: str, width: int, height: int, seed: int,
-                         frame_rate: int, length: int, image: torch.Tensor = None):
+    async def save_video(self, model: str, prompt: str, width: int, height: int,
+                         seed: int, frame_rate: int, length: int, image: torch.Tensor | None = None):
         seed = seed % 2147483647
         client = Ark(
             base_url="https://ark.ap-southeast.bytepluses.com/api/v3",
@@ -229,8 +228,8 @@ class CxBytePlus2ImageV2:
     OUTPUT_NODE = True
     CATEGORY = "cx/CxBytePlus2Image"
 
-    def save_image(self, model: str, prompt: str, width: int, height: int, cfg_scale: float, seed: int,
-                   batch_size: int, image: torch.Tensor = None):
+    def save_image(self, model: str, prompt: str, width: int, height: int,
+                   cfg_scale: float, seed: int, batch_size: int, image: torch.Tensor | None = None):
         seed = seed % 2147483647
         client = Ark(
             base_url="https://ark.ap-southeast.bytepluses.com/api/v3",

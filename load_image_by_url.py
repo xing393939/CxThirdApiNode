@@ -104,9 +104,14 @@ class LoadImageByUrl:
             image = torch.from_numpy(image)[None,]
             output_images.append(image)
 
+        output_image = None
         if len(output_images) > 1:
-            output_image = torch.cat(output_images, dim=0)
-        else:
+            try:
+                output_image = torch.cat(output_images, dim=0)
+            except Exception as e:
+                print(f"Error while concatenating images: {e}")
+
+        if output_image is None:
             output_image = output_images[0]
 
         return (output_image, )

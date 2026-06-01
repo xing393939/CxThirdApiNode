@@ -35,7 +35,7 @@ class LoadImageByUrl:
     FUNCTION = "run"
 
     @classmethod
-    def INPUT_TYPES(s):
+    def INPUT_TYPES(cls):
         return {
             "required": {
                 "url": ["STRING", {}],
@@ -46,7 +46,7 @@ class LoadImageByUrl:
         }
 
     def __init__(self):
-        self.url = ""
+        self.url: str = ""
 
     @property
     def filepath(self):
@@ -91,7 +91,11 @@ class LoadImageByUrl:
         first_image: Image.Image | None = None
         output_images: list[torch.Tensor] = []
         for i in ImageSequence.Iterator(img):
-            i = ImageOps.exif_transpose(i)
+            try:
+                i = ImageOps.exif_transpose(i)
+            except Exception as e:
+                print(f"Error while exif_transpose: {e}")
+
             i = i.convert("RGB")
             if first_image and i.size != first_image.size:
                 print(f"Image size mismatch first image size: {i.size} != {first_image.size}")

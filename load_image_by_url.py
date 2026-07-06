@@ -4,10 +4,14 @@ import os
 import io
 
 import requests
-from PIL.MpoImagePlugin import MpoImageFile
 from PIL import Image, ImageSequence, ImageOps
 from pillow_heif import register_heif_opener
+from PIL.GifImagePlugin import GifImageFile
+from PIL.MpoImagePlugin import MpoImageFile
+from PIL.PngImagePlugin import PngImageFile
+from PIL.WebPImagePlugin import WebPImageFile
 from requests.adapters import HTTPAdapter, Retry
+
 
 import numpy as np
 import torch
@@ -17,12 +21,14 @@ import folder_paths
 register_heif_opener()
 
 
+ANIMATE_IMAGE_TYPES = (GifImageFile, PngImageFile, WebPImageFile)
+
+
 def http_client():
     adapter = HTTPAdapter(max_retries=Retry(3, backoff_factor=0.1))
     http = requests.session()
     http.mount('http://', adapter)
     http.mount('https://', adapter)
-
     return http
 
 
@@ -100,6 +106,11 @@ class LoadImageByUrl:
             if first_image and i.size != first_image.size:
                 print(f"Image size mismatch first image size: {i.size} != {first_image.size}")
                 continue
+
+            if output_images and isinstance(img, ANIMATE_IMAGE_TYPES):
+                image_type = str(type(img)).split(".")[-1].split("ImageFile")[0].lower()
+                print(f'Only take the first frame of <{image_type}> image, total: {img.n_frames}')
+                break
 
             if first_image is None:
                 first_image = i

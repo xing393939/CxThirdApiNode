@@ -92,13 +92,22 @@ class LoadVideoByUrl:
             from requests.adapters import HTTPAdapter
             from requests.packages.urllib3.util.retry import Retry
             
+            DEFAULT_USER_AGENT = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36"
+            parsed_url = urllib.parse.urlparse(url)
+            headers = {
+                "User-Agent": DEFAULT_USER_AGENT,
+                "Host": parsed_url.netloc,
+                "Accept": "video/webm,video/mp4,video/*;q=0.9,*/*;q=0.8",
+                "Accept-Language": "zh-CN,zh;q=0.9,en-US;q=0.8,en;q=0.7",
+            }
+            
             adapter = HTTPAdapter(max_retries=Retry(total=3, backoff_factor=0.2))
             session = requests.Session()
             session.mount('http://', adapter)
             session.mount('https://', adapter)
             
             try:
-                with session.get(url, timeout=(30, 300), stream=True) as r:
+                with session.get(url, headers=headers, timeout=(30, 300), stream=True) as r:
                     r.raise_for_status()
                     with open(dest_path, 'wb') as f:
                         for chunk in r.iter_content(chunk_size=8192):

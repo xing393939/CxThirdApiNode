@@ -91,14 +91,22 @@ class LoadImageByUrl:
         except requests.exceptions.RequestException as e:
             print(f"[LoadImageByUrl] requests failed with {e}, falling back to urllib.request (HTTP/1.1)...")
             import urllib.request
+            import time
             req = urllib.request.Request(self.url, headers=headers)
-            try:
-                with urllib.request.urlopen(req, timeout=60) as fallback_resp:
-                    if fallback_resp.status != 200:
-                        raise ValueError(f"Failed to load image from {self.url}: {fallback_resp.status}")
-                    content = fallback_resp.read()
-            except Exception as fallback_e:
-                raise ValueError(f"Failed to download image from {self.url} via urllib: {fallback_e} (initial requests error: {e})")
+            
+            max_retries = 3
+            for attempt in range(max_retries):
+                try:
+                    with urllib.request.urlopen(req, timeout=60) as fallback_resp:
+                        if fallback_resp.status != 200:
+                            raise ValueError(f"Failed to load image from {self.url}: {fallback_resp.status}")
+                        content = fallback_resp.read()
+                    break  # Success, exit retry loop
+                except Exception as fallback_e:
+                    print(f"[LoadImageByUrl] urllib attempt {attempt + 1} failed: {fallback_e}")
+                    if attempt == max_retries - 1:
+                        raise ValueError(f"Failed to download image from {self.url} via urllib after {max_retries} attempts: {fallback_e} (initial requests error: {e})")
+                    time.sleep(1)
 
         if cache:
             temp_path = self.filepath + ".tmp"

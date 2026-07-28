@@ -116,24 +116,32 @@ class LoadVideoByUrl:
             except Exception as e:
                 print(f"[LoadVideoByUrl] requests failed with {e}, falling back to urllib.request (HTTP/1.1)...")
                 import urllib.request
+                import time
                 req = urllib.request.Request(url, headers=headers)
-                try:
-                    with urllib.request.urlopen(req, timeout=300) as r:
-                        if r.status != 200:
-                            raise ValueError(f"HTTP Error {r.status}")
-                        with open(dest_path, 'wb') as f:
-                            while True:
-                                chunk = r.read(8192)
-                                if not chunk:
-                                    break
-                                f.write(chunk)
-                except Exception as fallback_e:
-                    if os.path.exists(dest_path):
-                        try:
-                            os.remove(dest_path)
-                        except:
-                            pass
-                    raise ValueError(f"Failed to download video from {url}: {fallback_e} (initial error: {e})")
+                
+                max_retries = 3
+                for attempt in range(max_retries):
+                    try:
+                        with urllib.request.urlopen(req, timeout=300) as r:
+                            if r.status != 200:
+                                raise ValueError(f"HTTP Error {r.status}")
+                            with open(dest_path, 'wb') as f:
+                                while True:
+                                    chunk = r.read(8192)
+                                    if not chunk:
+                                        break
+                                    f.write(chunk)
+                        break  # Success, exit retry loop
+                    except Exception as fallback_e:
+                        if os.path.exists(dest_path):
+                            try:
+                                os.remove(dest_path)
+                            except:
+                                pass
+                        print(f"[LoadVideoByUrl] urllib attempt {attempt + 1} failed: {fallback_e}")
+                        if attempt == max_retries - 1:
+                            raise ValueError(f"Failed to download video from {url} via urllib after {max_retries} attempts: {fallback_e} (initial error: {e})")
+                        time.sleep(1)
         else:
             print(f"[LoadVideoByUrl] Using cached video: {dest_path}")
             

@@ -92,10 +92,13 @@ class LoadImageByUrl:
             print(f"[LoadImageByUrl] requests failed with {e}, falling back to urllib.request (HTTP/1.1)...")
             import urllib.request
             req = urllib.request.Request(self.url, headers=headers)
-            with urllib.request.urlopen(req, timeout=60) as fallback_resp:
-                if fallback_resp.status != 200:
-                    raise ValueError(f"Failed to load image from {self.url}: {fallback_resp.status}")
-                content = fallback_resp.read()
+            try:
+                with urllib.request.urlopen(req, timeout=60) as fallback_resp:
+                    if fallback_resp.status != 200:
+                        raise ValueError(f"Failed to load image from {self.url}: {fallback_resp.status}")
+                    content = fallback_resp.read()
+            except Exception as fallback_e:
+                raise ValueError(f"Failed to download image from {self.url} via urllib: {fallback_e} (initial requests error: {e})")
 
         if cache:
             temp_path = self.filepath + ".tmp"
@@ -111,7 +114,7 @@ class LoadImageByUrl:
                         pass
                 print(f"[LoadImageByUrl] Warning: Failed to write cache file: {e}")
 
-        return resp.content
+        return content
 
     def run(self, url: str, cache: bool = True):
         self.url = url

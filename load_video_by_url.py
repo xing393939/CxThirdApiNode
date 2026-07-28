@@ -94,9 +94,9 @@ class LoadVideoByUrl:
             
             DEFAULT_USER_AGENT = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36"
             parsed_url = urllib.parse.urlparse(url)
+            # Removed manual "Host" header injection to prevent HTTP/2 :authority conflicts
             headers = {
                 "User-Agent": DEFAULT_USER_AGENT,
-                "Host": parsed_url.netloc,
                 "Accept": "video/webm,video/mp4,video/*;q=0.9,*/*;q=0.8",
                 "Accept-Language": "zh-CN,zh;q=0.9,en-US;q=0.8,en;q=0.7",
             }
@@ -114,12 +114,26 @@ class LoadVideoByUrl:
                             if chunk:
                                 f.write(chunk)
             except Exception as e:
-                if os.path.exists(dest_path):
-                    try:
-                        os.remove(dest_path)
-                    except:
-                        pass
-                raise ValueError(f"Failed to download video from {url}: {e}")
+                print(f"[LoadVideoByUrl] requests failed with {e}, falling back to urllib.request (HTTP/1.1)...")
+                import urllib.request
+                req = urllib.request.Request(url, headers=headers)
+                try:
+                    with urllib.request.urlopen(req, timeout=300) as r:
+                        if r.status != 200:
+                            raise ValueError(f"HTTP Error {r.status}")
+                        with open(dest_path, 'wb') as f:
+                            while True:
+                                chunk = r.read(8192)
+                                if not chunk:
+                                    break
+                                f.write(chunk)
+                except Exception as fallback_e:
+                    if os.path.exists(dest_path):
+                        try:
+                            os.remove(dest_path)
+                        except:
+                            pass
+                    raise ValueError(f"Failed to download video from {url}: {fallback_e} (initial error: {e})")
         else:
             print(f"[LoadVideoByUrl] Using cached video: {dest_path}")
             

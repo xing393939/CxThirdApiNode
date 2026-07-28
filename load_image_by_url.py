@@ -32,9 +32,9 @@ DEFAULT_USER_AGENT = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.
 
 def get_default_headers(url: str, media_type: str = "image") -> dict:
     parsed_url = urlparse(url)
+    # Removed manual "Host" header injection to prevent HTTP/2 :authority conflicts
     headers = {
         "User-Agent": DEFAULT_USER_AGENT,
-        "Host": parsed_url.netloc,
         "Accept-Language": "zh-CN,zh;q=0.9,en-US;q=0.8,en;q=0.7",
     }
     if media_type == "image":
@@ -81,16 +81,27 @@ class LoadImageByUrl:
 
     def download_by_url(self, cache: bool):
         headers = get_default_headers(self.url, media_type="image")
-        resp = http_client().get(self.url, headers=headers, timeout=(30, 60))
-        if resp.status_code != 200:
-            raise ValueError(
-                f"Failed to load image from {self.url}: {resp.status_code}, {resp.text}")
+        
+        try:
+            resp = http_client().get(self.url, headers=headers, timeout=(30, 60))
+            if resp.status_code != 200:
+                raise ValueError(
+                    f"Failed to load image from {self.url}: {resp.status_code}, {resp.text}")
+            content = resp.content
+        except requests.exceptions.RequestException as e:
+            print(f"[LoadImageByUrl] requests failed with {e}, falling back to urllib.request (HTTP/1.1)...")
+            import urllib.request
+            req = urllib.request.Request(self.url, headers=headers)
+            with urllib.request.urlopen(req, timeout=60) as fallback_resp:
+                if fallback_resp.status != 200:
+                    raise ValueError(f"Failed to load image from {self.url}: {fallback_resp.status}")
+                content = fallback_resp.read()
 
         if cache:
             temp_path = self.filepath + ".tmp"
             try:
                 with open(temp_path, 'wb') as file:
-                    file.write(resp.content)
+                    file.write(content)
                 os.replace(temp_path, self.filepath)
             except Exception as e:
                 if os.path.exists(temp_path):

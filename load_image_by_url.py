@@ -16,7 +16,7 @@ from requests.adapters import HTTPAdapter, Retry
 import numpy as np
 import torch
 
-import folder_paths
+import folder_paths  # type: ignore
 
 from urllib.parse import urlparse
 
@@ -82,31 +82,81 @@ class LoadImageByUrl:
     def download_by_url(self, cache: bool):
         headers = get_default_headers(self.url, media_type="image")
         
-        try:
-            resp = http_client().get(self.url, headers=headers, timeout=(30, 60))
-            if resp.status_code != 200:
-                raise ValueError(
-                    f"Failed to load image from {self.url}: {resp.status_code}, {resp.text}")
-            content = resp.content
-        except requests.exceptions.RequestException as e:
-            print(f"[LoadImageByUrl] requests failed with {e}, falling back to urllib.request (HTTP/1.1)...")
+        content = None
+        last_error = None
+        max_retries = 3
+        import time
+        
+        # 1. Try requests with a manual retry loop for body read errors
+        for attempt in range(max_retries):
+            try:
+                resp = http_client().get(self.url, headers=headers, timeout=(15, 60))
+                if resp.status_code != 200:
+                    raise ValueError(f"HTTP {resp.status_code}: {resp.text}")
+                content = resp.content
+                break
+            except Exception as e:
+                last_error = e
+                print(f"[LoadImageByUrl] requests attempt {attempt + 1} failed: {e}")
+                time.sleep(1)
+
+        if content is None:
+            print(f"[LoadImageByUrl] requests failed, falling back to urllib...")
+            # 2. Try urllib
             import urllib.request
-            import time
             req = urllib.request.Request(self.url, headers=headers)
             
-            max_retries = 3
             for attempt in range(max_retries):
                 try:
                     with urllib.request.urlopen(req, timeout=60) as fallback_resp:
                         if fallback_resp.status != 200:
-                            raise ValueError(f"Failed to load image from {self.url}: {fallback_resp.status}")
+                            raise ValueError(f"HTTP {fallback_resp.status}")
                         content = fallback_resp.read()
-                    break  # Success, exit retry loop
-                except Exception as fallback_e:
-                    print(f"[LoadImageByUrl] urllib attempt {attempt + 1} failed: {fallback_e}")
-                    if attempt == max_retries - 1:
-                        raise ValueError(f"Failed to download image from {self.url} via urllib after {max_retries} attempts: {fallback_e} (initial requests error: {e})")
+                    break
+                except Exception as e:
+                    last_error = e
+                    print(f"[LoadImageByUrl] urllib attempt {attempt + 1} failed: {e}")
                     time.sleep(1)
+
+        if content is None:
+            print(f"[LoadImageByUrl] urllib also failed. Trying curl as last resort...")
+            # 3. Try curl via subprocess
+            import subprocess
+            import tempfile
+            tmp_path = None
+            try:
+                with tempfile.NamedTemporaryFile(delete=False) as tmp_file:
+                    tmp_path = tmp_file.name
+                
+                cmd = [
+                    "curl", "-L", "-s", "-S", "-f", 
+                    "--retry", "3", 
+                    "--retry-delay", "2", 
+                    "--connect-timeout", "15", 
+                    "--max-time", "120",
+                    "--http1.1"
+                ]
+                for k, v in headers.items():
+                    cmd.extend(["-H", f"{k}: {v}"])
+                cmd.extend(["-o", tmp_path, self.url])
+                
+                print(f"[LoadImageByUrl] Executing curl fallback...")
+                subprocess.run(cmd, check=True, capture_output=True)
+                
+                with open(tmp_path, "rb") as f:
+                    content = f.read()
+            except Exception as curl_e:
+                print(f"[LoadImageByUrl] curl failed: {curl_e}")
+                last_error = curl_e
+            finally:
+                if tmp_path and os.path.exists(tmp_path):
+                    try:
+                        os.remove(tmp_path)
+                    except Exception:
+                        pass
+        
+        if content is None:
+            raise ValueError(f"Failed to download image from {self.url} via all methods. Last error: {last_error}")
 
         if cache:
             temp_path = self.filepath + ".tmp"

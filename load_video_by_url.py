@@ -5,7 +5,7 @@ import importlib
 
 def get_vhs_load_video_class():
     # Method 1: Get from nodes registry if already loaded
-    import nodes
+    import nodes  # type: ignore
     cls = nodes.NODE_CLASS_MAPPINGS.get("VHS_LoadVideo")
     if cls is not None:
         return cls
@@ -69,7 +69,7 @@ class LoadVideoByUrl:
         if vhs_cls is None:
             raise RuntimeError("Could not locate the VHS_LoadVideo class from VideoHelperSuite. Please make sure VideoHelperSuite is installed.")
             
-        import folder_paths
+        import folder_paths  # type: ignore
         input_dir = folder_paths.get_input_directory()
         if not os.path.exists(input_dir):
             os.makedirs(input_dir, exist_ok=True)
@@ -88,38 +88,54 @@ class LoadVideoByUrl:
         
         if not cache or not os.path.exists(dest_path):
             print(f"[LoadVideoByUrl] Downloading video from: {url} -> {dest_path}")
-            import requests
-            from requests.adapters import HTTPAdapter
-            from requests.packages.urllib3.util.retry import Retry
             
             DEFAULT_USER_AGENT = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36"
-            parsed_url = urllib.parse.urlparse(url)
-            # Removed manual "Host" header injection to prevent HTTP/2 :authority conflicts
             headers = {
                 "User-Agent": DEFAULT_USER_AGENT,
                 "Accept": "video/webm,video/mp4,video/*;q=0.9,*/*;q=0.8",
                 "Accept-Language": "zh-CN,zh;q=0.9,en-US;q=0.8,en;q=0.7",
             }
             
+            import time
+            max_retries = 3
+            download_success = False
+            last_error = None
+
+            # 1. Try requests with a manual retry loop for body read errors
+            import requests
+            from requests.adapters import HTTPAdapter
+            from urllib3.util.retry import Retry
             adapter = HTTPAdapter(max_retries=Retry(total=3, backoff_factor=0.2))
             session = requests.Session()
             session.mount('http://', adapter)
             session.mount('https://', adapter)
             
-            try:
-                with session.get(url, headers=headers, timeout=(30, 300), stream=True) as r:
-                    r.raise_for_status()
-                    with open(dest_path, 'wb') as f:
-                        for chunk in r.iter_content(chunk_size=8192):
-                            if chunk:
-                                f.write(chunk)
-            except Exception as e:
-                print(f"[LoadVideoByUrl] requests failed with {e}, falling back to urllib.request (HTTP/1.1)...")
+            for attempt in range(max_retries):
+                try:
+                    with session.get(url, headers=headers, timeout=(15, 300), stream=True) as r:
+                        r.raise_for_status()
+                        with open(dest_path, 'wb') as f:
+                            for chunk in r.iter_content(chunk_size=8192):
+                                if chunk:
+                                    f.write(chunk)
+                    download_success = True
+                    break
+                except Exception as e:
+                    last_error = e
+                    print(f"[LoadVideoByUrl] requests attempt {attempt + 1} failed: {e}")
+                    if os.path.exists(dest_path):
+                        try:
+                            os.remove(dest_path)
+                        except Exception:
+                            pass
+                    time.sleep(1)
+
+            if not download_success:
+                print(f"[LoadVideoByUrl] requests failed, falling back to urllib...")
+                # 2. Try urllib
                 import urllib.request
-                import time
                 req = urllib.request.Request(url, headers=headers)
                 
-                max_retries = 3
                 for attempt in range(max_retries):
                     try:
                         with urllib.request.urlopen(req, timeout=300) as r:
@@ -131,17 +147,49 @@ class LoadVideoByUrl:
                                     if not chunk:
                                         break
                                     f.write(chunk)
-                        break  # Success, exit retry loop
-                    except Exception as fallback_e:
+                        download_success = True
+                        break
+                    except Exception as e:
+                        last_error = e
+                        print(f"[LoadVideoByUrl] urllib attempt {attempt + 1} failed: {e}")
                         if os.path.exists(dest_path):
                             try:
                                 os.remove(dest_path)
-                            except:
+                            except Exception:
                                 pass
-                        print(f"[LoadVideoByUrl] urllib attempt {attempt + 1} failed: {fallback_e}")
-                        if attempt == max_retries - 1:
-                            raise ValueError(f"Failed to download video from {url} via urllib after {max_retries} attempts: {fallback_e} (initial error: {e})")
                         time.sleep(1)
+
+            if not download_success:
+                print(f"[LoadVideoByUrl] urllib also failed. Trying curl as last resort...")
+                # 3. Try curl via subprocess
+                import subprocess
+                try:
+                    cmd = [
+                        "curl", "-L", "-s", "-S", "-f", 
+                        "--retry", "3", 
+                        "--retry-delay", "2", 
+                        "--connect-timeout", "15", 
+                        "--max-time", "600",
+                        "--http1.1"
+                    ]
+                    for k, v in headers.items():
+                        cmd.extend(["-H", f"{k}: {v}"])
+                    cmd.extend(["-o", dest_path, url])
+                    
+                    print(f"[LoadVideoByUrl] Executing curl fallback...")
+                    subprocess.run(cmd, check=True, capture_output=True)
+                    download_success = True
+                except Exception as curl_e:
+                    print(f"[LoadVideoByUrl] curl failed: {curl_e}")
+                    last_error = curl_e
+                    if os.path.exists(dest_path):
+                        try:
+                            os.remove(dest_path)
+                        except Exception:
+                            pass
+            
+            if not download_success:
+                raise ValueError(f"Failed to download video from {url} via all methods. Last error: {last_error}")
         else:
             print(f"[LoadVideoByUrl] Using cached video: {dest_path}")
             

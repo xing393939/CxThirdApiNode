@@ -1,7 +1,13 @@
 import os
 import hashlib
 import urllib.parse
+import urllib.request
 import importlib
+import time
+import subprocess
+import requests
+from requests.adapters import HTTPAdapter
+from urllib3.util.retry import Retry
 
 def get_vhs_load_video_class():
     # Method 1: Get from nodes registry if already loaded
@@ -96,15 +102,11 @@ class LoadVideoByUrl:
                 "Accept-Language": "zh-CN,zh;q=0.9,en-US;q=0.8,en;q=0.7",
             }
             
-            import time
             max_retries = 3
             download_success = False
             last_error = None
 
             # 1. Try requests with a manual retry loop for body read errors
-            import requests
-            from requests.adapters import HTTPAdapter
-            from urllib3.util.retry import Retry
             adapter = HTTPAdapter(max_retries=Retry(total=3, backoff_factor=0.2))
             session = requests.Session()
             session.mount('http://', adapter)
@@ -133,7 +135,6 @@ class LoadVideoByUrl:
             if not download_success:
                 print(f"[LoadVideoByUrl] requests failed, falling back to urllib...")
                 # 2. Try urllib
-                import urllib.request
                 req = urllib.request.Request(url, headers=headers)
                 
                 for attempt in range(max_retries):
@@ -162,7 +163,6 @@ class LoadVideoByUrl:
             if not download_success:
                 print(f"[LoadVideoByUrl] urllib also failed. Trying curl as last resort...")
                 # 3. Try curl via subprocess
-                import subprocess
                 try:
                     cmd = [
                         "curl", "-L", "-s", "-S", "-f", 

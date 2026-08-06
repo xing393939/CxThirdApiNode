@@ -5,6 +5,8 @@ from .load_image_by_url import LoadImageByUrl
 from .load_video_by_url import LoadVideoByUrl
 from .character_ops import CharacterOpsBatchController, CharacterOpsPromptEncode
 
+WEB_DIRECTORY = "./web"
+
 NODE_CLASS_MAPPINGS = {
     "LoadImageByUrl": LoadImageByUrl,
     "LoadVideoByUrl": LoadVideoByUrl,

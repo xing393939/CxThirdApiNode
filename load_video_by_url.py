@@ -6,8 +6,61 @@ import importlib
 import time
 import subprocess
 import requests
+import torch
 from requests.adapters import HTTPAdapter
 from urllib3.util.retry import Retry
+
+EMPTY_AUDIO_SAMPLE_RATE = 44100
+EMPTY_AUDIO_CHANNELS = 2
+
+
+def _empty_audio(duration=0.0):
+    samples = max(1, int(float(duration or 0.0) * EMPTY_AUDIO_SAMPLE_RATE))
+    return {
+        "waveform": torch.zeros((1, EMPTY_AUDIO_CHANNELS, samples)),
+        "sample_rate": EMPTY_AUDIO_SAMPLE_RATE,
+    }
+
+
+def _audio_duration_from_result(result, names):
+    try:
+        info_idx = [str(n).lower() for n in names].index("video_info")
+        info = result[info_idx] or {}
+        return info.get("loaded_duration") or info.get("source_duration") or 0.0
+    except (ValueError, TypeError, IndexError, AttributeError):
+        return 0.0
+
+
+def _materialize_audio(audio, duration=0.0):
+    """VHS returns a lazy audio map that raises on videos with no audio track.
+    ComfyUI iterates that map when AUDIO is wired, so convert it to a real dict
+    here: keep original audio when extraction works, otherwise silent audio.
+    """
+    if audio is None:
+        return _empty_audio(duration)
+    try:
+        return {
+            "waveform": audio["waveform"],
+            "sample_rate": audio["sample_rate"],
+        }
+    except Exception:
+        print("[LoadVideoByUrl] no audio track, using silence")
+        return _empty_audio(duration)
+
+
+def _with_safe_audio(result, return_names):
+    if not isinstance(result, tuple):
+        return result
+    names = return_names or ()
+    try:
+        audio_idx = [str(n).lower() for n in names].index("audio")
+    except ValueError:
+        return result
+    duration = _audio_duration_from_result(result, names)
+    result = list(result)
+    result[audio_idx] = _materialize_audio(result[audio_idx], duration)
+    return tuple(result)
+
 
 def get_vhs_load_video_class():
     # Method 1: Get from nodes registry if already loaded
@@ -210,9 +263,13 @@ class LoadVideoByUrl:
         else:
             func = getattr(vhs_cls, func_name)
             
-        # Execute the function outside of try-except block so that real execution/validation errors 
+        # Execute the function outside of try-except block so that real execution/validation errors
         # (e.g. video formatting errors, file not found) are raised transparently.
-        return func(**kwargs)
+        result = func(**kwargs)
+        return_names = getattr(vhs_cls, "RETURN_NAMES", None) or getattr(
+            self, "RETURN_NAMES", ("IMAGE", "frame_count", "audio", "video_info")
+        )
+        return _with_safe_audio(result, return_names)
 
 
 # Dynamic output schema synchronization for exact matching at load time
